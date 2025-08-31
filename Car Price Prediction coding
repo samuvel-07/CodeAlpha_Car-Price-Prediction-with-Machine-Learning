@@ -1,0 +1,82 @@
+# Car Price Prediction with Machine Learning
+
+# 1. Import Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+import joblib
+
+# 2. Load Dataset (fixed path)
+df = pd.read_csv(r"/content/car data.csv")
+
+# 3. Feature Engineering
+# Create Car Age instead of Year
+df["Car_Age"] = 2025 - df["Year"]
+df.drop(["Year", "Car_Name"], axis=1, inplace=True)
+
+# Encode categorical variables
+df = pd.get_dummies(df, drop_first=True)
+
+# 4. Split Features & Target
+X = df.drop("Selling_Price", axis=1)
+y = df["Selling_Price"]
+
+# Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scale numerical features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# 5. Train Models
+
+## Linear Regression
+lin_reg = LinearRegression()
+lin_reg.fit(X_train_scaled, y_train)
+y_pred_lin = lin_reg.predict(X_test_scaled)
+
+## Random Forest Regressor
+rf_reg = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_reg.fit(X_train, y_train)  # RF handles scaling internally
+y_pred_rf = rf_reg.predict(X_test)
+
+# 6. Evaluation Function
+def evaluate_model(y_true, y_pred, model_name):
+    r2 = r2_score(y_true, y_pred)
+    mae = mean_absolute_error(y_true, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    print(f"\n📊 {model_name} Performance:")
+    print(f"R² Score: {r2:.4f}")
+    print(f"MAE: {mae:.4f}")
+    print(f"RMSE: {rmse:.4f}")
+    return r2, mae, rmse
+
+# Evaluate both models
+evaluate_model(y_test, y_pred_lin, "Linear Regression")
+evaluate_model(y_test, y_pred_rf, "Random Forest Regressor")
+
+# 7. Visualization - Predicted vs Actual
+plt.figure(figsize=(8,6))
+plt.scatter(y_test, y_pred_rf, color='blue', alpha=0.6)
+plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--')  # perfect prediction line
+plt.xlabel("Actual Price")
+plt.ylabel("Predicted Price")
+plt.title("Random Forest - Actual vs Predicted Car Prices")
+plt.show()
+
+# 8. Save Best Model (Random Forest)
+joblib.dump(rf_reg, "car_price_model.pkl")
+print("\n✅ Best model (Random Forest) saved as 'car_price_model.pkl'")
+
+# 9. Test with Custom Input
+sample_input = X_test.iloc[0].values.reshape(1, -1)
+predicted_price = rf_reg.predict(sample_input)
+print("\n🚘 Predicted Price for sample input:", predicted_price[0])
